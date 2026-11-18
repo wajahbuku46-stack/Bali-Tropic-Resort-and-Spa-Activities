@@ -641,7 +641,7 @@
     <!-- APPLICATION SCRIPT -->
     <script>
         // ========================================================
-        // GANTI LINK DI BAWAH INI DENGAN LINK WEB APP (EXEC) BARU KAMU
+        // LINK WEB APP (EXEC) BARU KAMU
         // ========================================================
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYF6B0s6LZnfQb3CK-VKWxE2vBTKH3mR5bbqQuQMEA_0YNMFz6tCKT550Mrh08XxY5/exec";
 
@@ -662,16 +662,16 @@
                 activity: "Snorkeling Trip",
                 category: "250K++/pax for non all in guest",
                 day: "Monday & Friday",
-                time: "Session 1: 11.30 am to 12.30 pm | Session 2: 12.30 pm to 1.30 pm",
+                time: "Session 1: 11.30 am to 12.30 pm | Extra Session: 12.30 pm to 1.30 pm (Runs only if Session 1 is fully booked). (Weather and water conditions permitting)",
                 startHour: 11, startMinute: 30,
                 location: "Around Nusa Dua Ocean",
-                description: "Explore vibrant marine life and stunning coral reefs on an exciting underwater ocean adventure. Max 6 guests per session.",
+                description: "Explore vibrant marine life and stunning coral reefs on an exciting underwater ocean adventure. Max 6 guests per session. (Weather and water conditions permitting)",
                 image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80",
                 hasSessions: true,
                 maxPaxPerSession: 6,
                 sessions: [
                     { id: "S1", label: "Session 1: 11:30 AM - 12:30 PM", startHour: 11, startMinute: 30 },
-                    { id: "S2", label: "Session 2: 12:30 PM - 01:30 PM", startHour: 12, startMinute: 30 }
+                    { id: "S2", label: "Extra Session: 12:30 PM - 01:30 PM (Only available if Session 1 is full)", startHour: 12, startMinute: 30, isExtra: true }
                 ]
             },
             {
@@ -682,7 +682,7 @@
                 time: "11.30 am to 12.30 pm",
                 startHour: 11, startMinute: 30,
                 location: "Bali Tropic Beach",
-                description: "Master the basics of windsurfing and ride the coastal breeze with expert step-by-step guidance.",
+                description: "Master the basics of windsurfing and ride the coastal breeze with expert step-by-step guidance. (Weather and water conditions permitting)",
                 image: "https://drive.google.com/file/d/1hxPzN8W0qH8knwyijC2EQ-vBiBKfIegB/view?usp=drivesdk"
             },
             {
@@ -1001,6 +1001,7 @@
                     const s1Pax = getBookedPax(act.id, todayStr, 'S1');
                     const s2Pax = getBookedPax(act.id, todayStr, 'S2');
                     const s1Remaining = Math.max(0, act.maxPaxPerSession - s1Pax);
+                    const s1IsFull = s1Remaining === 0;
                     const s2Remaining = Math.max(0, act.maxPaxPerSession - s2Pax);
 
                     sessionBadgeHTML = `
@@ -1012,10 +1013,12 @@
                                     : `<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-bold">FULL</span>`}
                             </div>
                             <div class="flex justify-between items-center">
-                                <span class="text-gray-600 font-medium">Session 2 (12:30 - 01:30):</span>
-                                ${s2Remaining > 0 
-                                    ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">${s2Remaining}/6 spots left</span>` 
-                                    : `<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-bold">FULL</span>`}
+                                <span class="text-gray-600 font-medium">Extra Session (12:30 - 13:30):</span>
+                                ${!s1IsFull 
+                                    ? `<span class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded font-semibold italic">Available if Session 1 is full</span>`
+                                    : (s2Remaining > 0 
+                                        ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-semibold">${s2Remaining}/6 spots left</span>` 
+                                        : `<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded font-bold">FULL</span>`)}
                             </div>
                         </div>
                     `;
@@ -1036,7 +1039,7 @@
                             </div>
 
                             <div class="p-5 space-y-3">
-                                <p class="text-xs text-gray-600 line-clamp-2 leading-relaxed">${act.description}</p>
+                                <p class="text-xs text-gray-600 line-clamp-3 leading-relaxed">${act.description}</p>
                                 <div class="space-y-1.5 text-xs text-gray-700 pt-2 border-t border-sand-100">
                                     <div class="flex items-center space-x-2">
                                         <i class="fa-solid fa-calendar-day w-4 text-emerald-700"></i>
@@ -1083,7 +1086,7 @@
             if (sessionContainer && sessionSelect) {
                 if (act.hasSessions) {
                     sessionContainer.classList.remove('hidden');
-                    sessionSelect.innerHTML = act.sessions.map(s => `<option value="${s.id}" data-hour="${s.startHour}" data-minute="${s.startMinute}">${s.label}</option>`).join('');
+                    sessionSelect.innerHTML = act.sessions.map(s => `<option value="${s.id}" data-hour="${s.startHour}" data-minute="${s.startMinute}" ${s.isExtra ? 'data-is-extra="true"' : ''}>${s.label}</option>`).join('');
                     sessionSelect.required = true;
                 } else {
                     sessionContainer.classList.add('hidden');
@@ -1192,7 +1195,26 @@
                 return;
             }
 
+            const selectedOption = sessionSelect.selectedOptions[0];
+            const isExtraSession = selectedOption && selectedOption.getAttribute('data-is-extra') === 'true';
             const selectedSessionId = sessionSelect.value;
+
+            if (isExtraSession) {
+                const s1BookedPax = getBookedPax(actId, bookDate, 'S1');
+                if (s1BookedPax < act.maxPaxPerSession) {
+                    if (capacityMsg) {
+                        capacityMsg.classList.remove('hidden');
+                        capacityMsg.className = "text-xs font-bold text-red-600 bg-red-50 p-2 rounded border border-red-200 mt-1";
+                        capacityMsg.innerText = "⚠️ Warning: Extra Session only runs if Session 1 is fully booked (currently Session 1 still has open spots).";
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                    return;
+                }
+            }
+
             const bookedPax = getBookedPax(actId, bookDate, selectedSessionId);
             const maxPax = act.maxPaxPerSession;
             const remaining = Math.max(0, maxPax - bookedPax);
@@ -1211,6 +1233,10 @@
                 } else {
                     capacityMsg.className = "text-xs font-semibold text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200 mt-1";
                     capacityMsg.innerText = `✅ ${remaining} of ${maxPax} spots remaining for this session.`;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
                 }
             }
         }
@@ -1236,6 +1262,14 @@
                 const sessionSelect = document.getElementById('book-session');
                 sessionId = sessionSelect ? sessionSelect.value : null;
                 selectedSession = act.sessions ? act.sessions.find(s => s.id === sessionId) : null;
+
+                if (selectedSession && selectedSession.isExtra) {
+                    const s1BookedPax = getBookedPax(actId, bookDate, 'S1');
+                    if (s1BookedPax < act.maxPaxPerSession) {
+                        alert("Extra Session cannot be booked because Session 1 is not fully booked yet.");
+                        return;
+                    }
+                }
 
                 const currentBookedPax = getBookedPax(actId, bookDate, sessionId);
                 if (currentBookedPax + reqPax > act.maxPaxPerSession) {
