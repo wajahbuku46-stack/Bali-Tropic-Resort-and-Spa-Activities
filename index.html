@@ -380,7 +380,7 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm min-w-[750px]">
+                    <table class="w-full text-left text-sm min-w-[850px]">
                         <thead class="bg-sand-100 text-xs text-gray-600 uppercase font-semibold">
                             <tr>
                                 <th class="p-4 whitespace-nowrap">Timestamp</th>
@@ -390,6 +390,7 @@
                                 <th class="p-4 whitespace-nowrap">Special Requests / Notes</th>
                                 <th class="p-4 text-center whitespace-nowrap">Pax</th>
                                 <th class="p-4 whitespace-nowrap">Status</th>
+                                <th class="p-4 text-center whitespace-nowrap">Delete</th>
                             </tr>
                         </thead>
                         <tbody id="bookings-table-body" class="divide-y divide-sand-200"></tbody>
@@ -641,7 +642,7 @@
     <!-- APPLICATION SCRIPT -->
     <script>
         // ========================================================
-        // LINK WEB APP (EXEC) BARU KAMU
+        // LINK WEB APP (EXEC) GOOGLE SHEETS
         // ========================================================
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYF6B0s6LZnfQb3CK-VKWxE2vBTKH3mR5bbqQuQMEA_0YNMFz6tCKT550Mrh08XxY5/exec";
 
@@ -909,28 +910,32 @@
             localStorage.setItem('bt_activity_bookings', JSON.stringify(bookings));
         }
 
-        // Fungsi untuk mengambil data dari Google Sheets
+        // Fungsi untuk mengambil data dari Google Sheets (Disesuaikan dengan Header Baru: ID, TIMESTAMP, NAME, ACTIVITY NAME, DATE, PAX, ROOM, PACKAGE, NOTES, SESSIONID, SESSION LABEL, STATUS)
         function fetchBookingsFromCloud() {
             fetch(GOOGLE_SCRIPT_URL)
                 .then(response => response.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
-                        // Petakan data dari Google Sheets agar sesuai dengan format aplikasi
                         bookings = data.map((row, index) => {
+                            // Mencocokkan berbagai kemungkinan penamaan huruf besar/kecil dari Google Sheet
+                            const actName = row['ACTIVITY NAME'] || row.activityName || row.Aktivitas || 'Activity';
+                            // Cari activityId berdasarkan nama kegiatan
+                            const matchedAct = RAW_ACTIVITIES.find(a => a.activity.toLowerCase() === actName.toLowerCase());
+                            
                             return {
                                 id: row.ID || ('BK-CLOUD-' + index),
-                                activityId: parseInt(row.activityId) || 1,
-                                activityName: row.activityName || 'Activity',
-                                sessionId: row.sessionId || null,
-                                sessionLabel: row.sessionLabel || null,
-                                date: row.date || new Date().toISOString().split('T')[0],
-                                room: row.room || '-',
-                                name: row.name || 'Guest',
-                                pax: parseInt(row.pax) || 1,
-                                package: row.package || 'Standard',
-                                notes: row.notes || '',
-                                status: row.Status || 'Pending',
-                                createdAt: row.Timestamp || new Date().toISOString()
+                                activityId: matchedAct ? matchedAct.id : 1,
+                                activityName: actName,
+                                sessionId: row.SESSIONID || row.sessionId || null,
+                                sessionLabel: row['SESSION LABEL'] || row.sessionLabel || null,
+                                date: row.DATE || row.date || new Date().toISOString().split('T')[0],
+                                room: row.ROOM || row.room || '-',
+                                name: row.NAME || row.name || 'Guest',
+                                pax: parseInt(row.PAX || row.pax) || 1,
+                                package: row.PACKAGE || row.package || 'Standard',
+                                notes: row.NOTES || row.notes || '',
+                                status: row.STATUS || row.Status || 'Pending',
+                                createdAt: row.TIMESTAMP || row.Timestamp || new Date().toISOString()
                             };
                         }).reverse(); // Urutkan dari yang terbaru
                         saveBookings();
@@ -1241,7 +1246,7 @@
             }
         }
 
-        // Fungsi Submit Booking yang dikirim langsung ke Google Sheets (Cloud)
+        // Fungsi Submit Booking dikirim langsung ke Google Sheets (Cloud)
         function handleBookingSubmit(e) {
             e.preventDefault();
             
@@ -1304,7 +1309,6 @@
                 body: JSON.stringify(bookingData)
             })
             .then(() => {
-                // Simpan juga secara lokal agar langsung tampil di UI
                 bookings.unshift(bookingData);
                 saveBookings();
                 closeBookingModal();
@@ -1314,7 +1318,6 @@
                 document.getElementById('booking-form').reset();
                 document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
 
-                // Refresh data cloud setelah beberapa detik
                 setTimeout(fetchBookingsFromCloud, 2000);
             })
             .catch(error => {
@@ -1350,6 +1353,35 @@
             .catch(error => {
                 console.error("Gagal mengubah status:", error);
                 alert("Gagal memperbarui status ke server.");
+            });
+        }
+
+        // Fungsi untuk Menghapus Data Booking (Satuan)
+        function deleteBooking(bookingId) {
+            if (!confirm("Apakah Anda yakin ingin menghapus data booking ini?")) return;
+
+            const payload = {
+                action: "deleteBooking",
+                id: bookingId
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                bookings = bookings.filter(b => b.id !== bookingId);
+                saveBookings();
+                renderAdminDashboard();
+                console.log("Booking berhasil dihapus:", bookingId);
+            })
+            .catch(error => {
+                console.error("Gagal menghapus booking:", error);
+                alert("Gagal menghapus data dari server.");
             });
         }
 
@@ -1407,7 +1439,6 @@
                 btnAdmin.className = "px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-sm font-medium transition-all duration-200 flex items-center space-x-1 bg-emerald-800 text-gold-400 shadow";
                 btnGuest.className = "px-2 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-sm font-medium transition-all duration-200 flex items-center space-x-1 text-emerald-300 hover:text-white hover:bg-emerald-800";
                 
-                // Ambil data terbaru dari cloud setiap kali membuka halaman admin
                 fetchBookingsFromCloud();
             }
         }
@@ -1521,6 +1552,11 @@
                                 <option value="Confirmed" ${bk.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
                             </select>
                         </td>
+                        <td class="p-4 text-center whitespace-nowrap">
+                            <button onclick="deleteBooking('${bk.id}')" class="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-semibold transition">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                            </button>
+                        </td>
                     </tr>
                 `).join('');
             }
@@ -1606,9 +1642,9 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Date,Room,Guest Name,Pax,Activity,Package,Notes,Status\n";
+            let csvContent = "data:text/csv;charset=utf-8,ID,TIMESTAMP,NAME,ACTIVITY NAME,DATE,PAX,ROOM,PACKAGE,NOTES,SESSIONID,SESSION LABEL,STATUS\n";
             bookings.forEach(b => {
-                csvContent += `"${b.createdAt}","${b.date}","${b.room}","${b.name}",${b.pax},"${b.activityName}","${b.package}","${b.notes}","${b.status || 'Pending'}"\n`;
+                csvContent += `"${b.id}","${b.createdAt}","${b.name}","${b.activityName}","${b.date}",${b.pax},"${b.room}","${b.package}","${b.notes}","${b.sessionId}","${b.sessionLabel}","${b.status || 'Pending'}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
