@@ -627,7 +627,7 @@
                         Reset All to Default Photos
                     </button>
                     <div class="flex space-x-2">
-                        <button onclick="closePhotoManagerModal()" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-600 text-xs font-medium">Cancel</button>
+                        <button onclick="closePhotoManagerModal()" class="px-4 py-2 rounded-xl border border-gray-300 text-xs font-medium">Cancel</button>
                         <button onclick="savePhotoChanges()" class="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs shadow flex items-center space-x-2">
                             <i class="fa-solid fa-floppy-disk"></i>
                             <span>Save Photo Changes</span>
@@ -640,8 +640,10 @@
 
     <!-- APPLICATION SCRIPT -->
     <script>
-        // URL Web App Google Apps Script kamu
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJFt0gB_3rmX1pR6PBLPKtyL1XQkCoeCU_pCLz4DJ_J5EGnVuIkUPEfuh7e64Rm9uciA/exec";
+        // ========================================================
+        // GANTI LINK DI BAWAH INI DENGAN LINK WEB APP (EXEC) BARU KAMU
+        // ========================================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYF6B0s6LZnfQb3CK-VKWxE2vBTKH3mR5bbqQuQMEA_0YNMFz6tCKT550Mrh08XxY5/exec";
 
         const RAW_ACTIVITIES = [
             {
@@ -915,19 +917,19 @@
                     if (Array.isArray(data) && data.length > 0) {
                         // Petakan data dari Google Sheets agar sesuai dengan format aplikasi
                         bookings = data.map((row, index) => {
-                            // Cek nama kolom sesuai dengan Apps Script yang mengembalikan header
                             return {
                                 id: row.ID || ('BK-CLOUD-' + index),
-                                activityId: parseInt(row.ActivityID) || 1,
-                                activityName: row.Aktivitas || row.ActivityName || 'Activity',
-                                sessionId: row.SessionID || null,
-                                sessionLabel: row.SessionLabel || null,
-                                date: row.TanggalBooking || row.Date || new Date().toISOString().split('T')[0],
-                                room: row.Room || row.Kamar || '-',
-                                name: row.NamaTamu || row.Name || 'Guest',
-                                pax: parseInt(row.Jumlah) || parseInt(row.Pax) || 1,
-                                package: row.Package || 'Standard',
-                                notes: row.Notes || '',
+                                activityId: parseInt(row.activityId) || 1,
+                                activityName: row.activityName || 'Activity',
+                                sessionId: row.sessionId || null,
+                                sessionLabel: row.sessionLabel || null,
+                                date: row.date || new Date().toISOString().split('T')[0],
+                                room: row.room || '-',
+                                name: row.name || 'Guest',
+                                pax: parseInt(row.pax) || 1,
+                                package: row.package || 'Standard',
+                                notes: row.notes || '',
+                                status: row.Status || 'Pending',
                                 createdAt: row.Timestamp || new Date().toISOString()
                             };
                         }).reverse(); // Urutkan dari yang terbaru
@@ -1254,6 +1256,7 @@
                 pax: reqPax,
                 package: document.getElementById('book-package').value,
                 notes: document.getElementById('book-notes').value.trim(),
+                status: 'Pending',
                 createdAt: new Date().toISOString()
             };
 
@@ -1283,6 +1286,36 @@
             .catch(error => {
                 console.error("Error submitting to cloud:", error);
                 alert("Gagal mengirim booking ke server cloud.");
+            });
+        }
+
+        // Fungsi untuk mengubah status (Pending / Confirmed) langsung di tabel admin
+        function updateBookingStatus(bookingId, newStatus) {
+            const payload = {
+                action: "updateStatus",
+                id: bookingId,
+                status: newStatus
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                const bk = bookings.find(b => b.id === bookingId);
+                if (bk) {
+                    bk.status = newStatus;
+                    saveBookings();
+                }
+                console.log("Status berhasil diubah ke:", newStatus);
+            })
+            .catch(error => {
+                console.error("Gagal mengubah status:", error);
+                alert("Gagal memperbarui status ke server.");
             });
         }
 
@@ -1449,7 +1482,10 @@
                         </td>
                         <td class="p-4 text-center whitespace-nowrap font-bold text-gray-800">${bk.pax}</td>
                         <td class="p-4 whitespace-nowrap">
-                            <span class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-100 text-emerald-800 rounded-full">Confirmed</span>
+                            <select onchange="updateBookingStatus('${bk.id}', this.value)" class="text-xs font-semibold px-2 py-1 rounded-lg border outline-none transition ${bk.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}">
+                                <option value="Pending" ${bk.status === 'Pending' || !bk.status ? 'selected' : ''}>Pending</option>
+                                <option value="Confirmed" ${bk.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                            </select>
                         </td>
                     </tr>
                 `).join('');
@@ -1536,9 +1572,9 @@
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Date,Room,Guest Name,Pax,Activity,Package,Notes\n";
+            let csvContent = "data:text/csv;charset=utf-8,Timestamp,Date,Room,Guest Name,Pax,Activity,Package,Notes,Status\n";
             bookings.forEach(b => {
-                csvContent += `"${b.createdAt}","${b.date}","${b.room}","${b.name}",${b.pax},"${b.activityName}","${b.package}","${b.notes}"\n`;
+                csvContent += `"${b.createdAt}","${b.date}","${b.room}","${b.name}",${b.pax},"${b.activityName}","${b.package}","${b.notes}","${b.status || 'Pending'}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
