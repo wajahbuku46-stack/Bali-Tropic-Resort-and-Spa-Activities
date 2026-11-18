@@ -82,28 +82,27 @@
     <header class="sticky top-0 z-40 bg-emerald-900 text-white shadow-lg border-b border-gold-500/30 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20">
-                <!-- Resort Official Logo & Name -->
+                <!-- Resort Logo & Name -->
                 <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('guest')">
-                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center p-1.5 shadow-inner overflow-hidden shrink-0">
+                    <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center p-1.5 shadow-inner overflow-hidden">
                         <img src="https://lh3.googleusercontent.com/d/1XonoIvDHhizD0hM7kIoiMFeZjUheReV1=w1000" alt="Bali Tropic Logo" class="w-full h-full object-contain" onerror="this.src='https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=200&q=80'">
                     </div>
                     <div>
-                        <h1 class="font-serif-title text-lg sm:text-2xl font-bold tracking-wide text-gold-400 whitespace-nowrap">BALI TROPIC</h1>
-                        <p class="text-[10px] sm:text-xs text-emerald-200 tracking-widest uppercase font-light whitespace-nowrap">Resort & Spa • Activity Hub</p>
+                        <h1 class="font-serif-title text-xl sm:text-2xl font-bold tracking-wide text-gold-400">BALI TROPIC</h1>
+                        <p class="text-xs text-emerald-200 tracking-widest uppercase font-light">Resort & Spa • Activity Hub</p>
                     </div>
                 </div>
 
                 <!-- Navigation Tabs -->
                 <div class="flex items-center space-x-2 sm:space-x-4">
-                    <button id="btn-guest-view" onclick="switchTab('guest')" class="px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center space-x-1.5 sm:space-x-2 bg-emerald-800 text-gold-400 border border-gold-500/30">
+                    <button id="btn-guest-view" onclick="switchTab('guest')" class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 bg-emerald-800 text-gold-400 border border-gold-500/30">
                         <i class="fa-solid fa-calendar-days"></i>
-                        <span>Guest Activities</span>
+                        <span class="hidden sm:inline">Guest Activities</span>
                     </button>
                     
-                    <button id="btn-admin-view" onclick="toggleAdminAuth()" class="px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center space-x-1.5 sm:space-x-2 bg-emerald-950 text-emerald-300 hover:text-white hover:bg-emerald-800 border border-emerald-700">
+                    <button id="btn-admin-view" onclick="toggleAdminAuth()" class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 bg-emerald-950 text-emerald-300 hover:text-white hover:bg-emerald-800 border border-emerald-700">
                         <i class="fa-solid fa-user-shield"></i>
-                        <span class="hidden md:inline">Management Admin</span>
-                        <span class="md:hidden">Admin</span>
+                        <span class="hidden sm:inline">Management Admin</span>
                     </button>
                 </div>
             </div>
@@ -112,7 +111,7 @@
 
     <!-- Main Content -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
+    
         <!-- GUEST VIEW -->
         <section id="guest-section" class="space-y-8">
             <!-- Hero Banner -->
