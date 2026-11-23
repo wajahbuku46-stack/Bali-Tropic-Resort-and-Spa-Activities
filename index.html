@@ -1470,7 +1470,28 @@
         function closeBookingModal() {
             document.getElementById('booking-modal').classList.add('hidden');
         }
+function getLocalDateStr(dateObj = new Date()) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
+        function handleAdminDateFilterChange() {
+            const dateFilter = document.getElementById('admin-date-filter').value;
+            const customDateInput = document.getElementById('admin-custom-date');
+
+            if (dateFilter === 'CUSTOM') {
+                customDateInput.classList.remove('hidden');
+                if (!customDateInput.value) {
+                    customDateInput.value = getLocalDateStr(new Date());
+                }
+            } else {
+                customDateInput.classList.add('hidden');
+            }
+
+            renderAdminDashboard();
+        }
         function renderAdminDashboard() {
             const dateFilter = document.getElementById('admin-date-filter').value;
             const now = new Date();
@@ -1511,15 +1532,24 @@
             document.getElementById('stat-popular').innerText = popularName;
             document.getElementById('stat-popular-count').innerText = `${maxPax} total pax`;
 
+           const customDateVal = document.getElementById('admin-custom-date')?.value || '';
+            const tomorrowObj = new Date(now);
+            tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+            const tomorrowStr = getLocalDateStr(tomorrowObj);
+            const localTodayStr = getLocalDateStr(now);
+
             let filteredTableBookings = bookings.filter(b => {
-                if (dateFilter === 'TODAY') return b.date === todayStr;
+                const bkDateStr = String(b.date || '').split('T')[0];
+                if (dateFilter === 'TODAY') return bkDateStr === localTodayStr || b.date === todayStr;
+                if (dateFilter === 'TOMORROW') return bkDateStr === tomorrowStr;
+                if (dateFilter === 'CUSTOM') return customDateVal ? bkDateStr === customDateVal : true;
                 if (dateFilter === 'MONTH') {
-                    const bd = new Date(b.date);
-                    return bd.getMonth() === currentMonth && bd.getFullYear() === currentYear;
+                    const bd = new Date(bkDateStr + 'T00:00:00');
+                    return !isNaN(bd) && bd.getMonth() === currentMonth && bd.getFullYear() === currentYear;
                 }
                 if (dateFilter === 'YEAR') {
-                    const bd = new Date(b.date);
-                    return bd.getFullYear() === currentYear;
+                    const bd = new Date(bkDateStr + 'T00:00:00');
+                    return !isNaN(bd) && bd.getFullYear() === currentYear;
                 }
                 return true;
             });
