@@ -369,7 +369,7 @@
                         <h3 class="text-lg font-bold text-gray-800 font-serif-title">Recent Guest Registrations</h3>
                         <p class="text-xs text-gray-500">List of all upcoming and past activity sign-ups from cloud</p>
                     </div>
-                   <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <select id="admin-date-filter" onchange="handleAdminDateFilterChange()" class="bg-sand-50 border border-sand-200 text-gray-700 text-xs rounded-lg p-2 focus:ring-emerald-500 outline-none">
                             <option value="ALL">All Time</option>
                             <option value="TODAY">Today</option>
@@ -380,6 +380,7 @@
                         </select>
                         <input type="date" id="admin-custom-date" onchange="renderAdminDashboard()" class="hidden bg-sand-50 border border-sand-200 text-gray-700 text-xs rounded-lg p-2 focus:ring-emerald-500 outline-none">
                     </div>
+                </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm min-w-[850px]">
@@ -668,7 +669,7 @@
                 time: "Session 1: 11.30 am to 12.30 pm | Extra Session: 12.30 pm to 1.30 pm (Runs only if Session 1 is fully booked). (Weather and water conditions permitting)",
                 startHour: 11, startMinute: 30,
                 location: "Around Nusa Dua Ocean",
-                description: "Explore vibrant marine life and stunning coral reefs on an exciting underwater ocean adventure. Max 6 guests per session.",
+                description: "Explore vibrant marine life and stunning coral reefs on an exciting underwater ocean adventure. Max 6 guests per session. (Weather and water conditions permitting)",
                 image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80",
                 hasSessions: true,
                 maxPaxPerSession: 6,
@@ -823,6 +824,29 @@
             return url;
         }
 
+        function getLocalDateStr(dateObj = new Date()) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function normalizeDateToLocalStr(dateVal) {
+            if (!dateVal) return getLocalDateStr(new Date());
+            const str = String(dateVal).trim();
+
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+                return str;
+            }
+
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) {
+                return getLocalDateStr(parsed);
+            }
+
+            return str.split('T')[0];
+        }
+
         let selectedDayFilter = 'All';
         let bookings = [];
         let chartInstance = null;
@@ -835,9 +859,9 @@
             loadCustomPhotos();
             renderDayFilters();
             filterActivities();
-            fetchBookingsFromCloud(); // Tarik data awal dari Google Sheet
+            fetchBookingsFromCloud();
 
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = getLocalDateStr(new Date());
             const bookDateElem = document.getElementById('book-date');
             if (bookDateElem) bookDateElem.value = todayStr;
         };
@@ -912,16 +936,13 @@
             localStorage.setItem('bt_activity_bookings', JSON.stringify(bookings));
         }
 
-        // Fungsi untuk mengambil data dari Google Sheets (Disesuaikan dengan Header Baru: ID, TIMESTAMP, NAME, ACTIVITY NAME, DATE, PAX, ROOM, PACKAGE, NOTES, SESSIONID, SESSION LABEL, STATUS)
         function fetchBookingsFromCloud() {
             fetch(GOOGLE_SCRIPT_URL)
                 .then(response => response.json())
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
                         bookings = data.map((row, index) => {
-                            // Mencocokkan berbagai kemungkinan penamaan huruf besar/kecil dari Google Sheet
                             const actName = row['ACTIVITY NAME'] || row.activityName || row.Aktivitas || 'Activity';
-                            // Cari activityId berdasarkan nama kegiatan
                             const matchedAct = RAW_ACTIVITIES.find(a => a.activity.toLowerCase() === actName.toLowerCase());
                             
                             return {
@@ -930,7 +951,7 @@
                                 activityName: actName,
                                 sessionId: row.SESSIONID || row.sessionId || null,
                                 sessionLabel: row['SESSION LABEL'] || row.sessionLabel || null,
-                                date: row.DATE || row.date || new Date().toISOString().split('T')[0],
+                                date: normalizeDateToLocalStr(row.DATE || row.date || new Date()),
                                 room: row.ROOM || row.room || '-',
                                 name: row.NAME || row.name || 'Guest',
                                 pax: parseInt(row.PAX || row.pax) || 1,
@@ -939,7 +960,7 @@
                                 status: row.STATUS || row.Status || 'Pending',
                                 createdAt: row.TIMESTAMP || row.Timestamp || new Date().toISOString()
                             };
-                        }).reverse(); // Urutkan dari yang terbaru
+                        }).reverse();
                         saveBookings();
                         if (!document.getElementById('admin-section').classList.contains('hidden')) {
                             renderAdminDashboard();
@@ -967,8 +988,9 @@
         }
 
         function getBookedPax(activityId, dateStr, sessionId = null) {
+            const targetDate = normalizeDateToLocalStr(dateStr);
             return bookings
-                .filter(b => b.activityId === activityId && b.date === dateStr && (sessionId ? b.sessionId === sessionId : true))
+                .filter(b => b.activityId === activityId && normalizeDateToLocalStr(b.date) === targetDate && (sessionId ? b.sessionId === sessionId : true))
                 .reduce((sum, b) => sum + b.pax, 0);
         }
 
@@ -977,7 +999,7 @@
             const noRes = document.getElementById('no-activities');
             const categoryValue = document.getElementById('category-filter').value;
             const searchVal = document.getElementById('search-input').value.toLowerCase().trim();
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = getLocalDateStr(new Date());
 
             let filtered = RAW_ACTIVITIES.filter(act => {
                 let matchesDay = selectedDayFilter === 'All' || act.day === 'Everyday' || act.day.includes(selectedDayFilter);
@@ -1104,7 +1126,7 @@
 
             const bookDateElem = document.getElementById('book-date');
             if (bookDateElem) {
-                bookDateElem.value = new Date().toISOString().split('T')[0];
+                bookDateElem.value = getLocalDateStr(new Date());
             }
 
             validateBookingDateAndCapacity();
@@ -1142,7 +1164,7 @@
             }
 
             const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
+            const todayStr = getLocalDateStr(now);
 
             if (bookDateVal === todayStr) {
                 let targetHour = act.startHour;
@@ -1248,7 +1270,6 @@
             }
         }
 
-        // Fungsi Submit Booking dikirim langsung ke Google Sheets (Cloud)
         function handleBookingSubmit(e) {
             e.preventDefault();
             
@@ -1259,7 +1280,7 @@
 
             const actId = parseInt(document.getElementById('modal-activity-id').value);
             const act = RAW_ACTIVITIES.find(a => a.id === actId);
-            const bookDate = document.getElementById('book-date').value;
+            const bookDate = normalizeDateToLocalStr(document.getElementById('book-date').value);
             const reqPax = parseInt(document.getElementById('book-pax').value);
 
             let selectedSession = null;
@@ -1301,7 +1322,6 @@
                 createdAt: new Date().toISOString()
             };
 
-            // Kirim data ke Google Apps Script menggunakan fetch POST
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors",
@@ -1318,7 +1338,7 @@
                 filterActivities();
 
                 document.getElementById('booking-form').reset();
-                document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('book-date').value = getLocalDateStr(new Date());
 
                 setTimeout(fetchBookingsFromCloud, 2000);
             })
@@ -1328,7 +1348,6 @@
             });
         }
 
-        // Fungsi untuk mengubah status (Pending / Confirmed) langsung di tabel admin
         function updateBookingStatus(bookingId, newStatus) {
             const payload = {
                 action: "updateStatus",
@@ -1358,7 +1377,6 @@
             });
         }
 
-        // Fungsi untuk Menghapus Data Booking (Satuan)
         function deleteBooking(bookingId) {
             if (!confirm("Apakah Anda yakin ingin menghapus data booking ini?")) return;
 
@@ -1390,6 +1408,7 @@
         function showReceiptModal(bk, act) {
             const receiptBox = document.getElementById('receipt-content');
             const displayTime = bk.sessionLabel ? bk.sessionLabel : act.time;
+            const displayDate = normalizeDateToLocalStr(bk.date);
 
             receiptBox.innerHTML = `
                 <div class="flex justify-between border-b pb-1.5 border-sand-200">
@@ -1402,7 +1421,7 @@
                 </div>
                 <div class="flex justify-between border-b pb-1.5 border-sand-200">
                     <span class="text-gray-500">Date & Session:</span>
-                    <span class="font-medium text-gray-800 text-right">${bk.date}<br>${displayTime}</span>
+                    <span class="font-medium text-gray-800 text-right">${displayDate}<br>${displayTime}</span>
                 </div>
                 <div class="flex justify-between border-b pb-1.5 border-sand-200">
                     <span class="text-gray-500">Location:</span>
@@ -1470,12 +1489,6 @@
         function closeBookingModal() {
             document.getElementById('booking-modal').classList.add('hidden');
         }
-function getLocalDateStr(dateObj = new Date()) {
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
 
         function handleAdminDateFilterChange() {
             const dateFilter = document.getElementById('admin-date-filter').value;
@@ -1492,24 +1505,30 @@ function getLocalDateStr(dateObj = new Date()) {
 
             renderAdminDashboard();
         }
+
         function renderAdminDashboard() {
             const dateFilter = document.getElementById('admin-date-filter').value;
+            const customDateVal = document.getElementById('admin-custom-date')?.value || '';
             const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
+            const localTodayStr = getLocalDateStr(now);
+            const tomorrowObj = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const tomorrowStr = getLocalDateStr(tomorrowObj);
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
 
-            let todayBookings = bookings.filter(b => b.date === todayStr);
+            let todayBookings = bookings.filter(b => normalizeDateToLocalStr(b.date) === localTodayStr);
             let todayPaxTotal = todayBookings.reduce((sum, b) => sum + b.pax, 0);
 
             let monthPaxTotal = bookings.filter(b => {
-                const bd = new Date(b.date);
-                return bd.getMonth() === currentMonth && bd.getFullYear() === currentYear;
+                const dStr = normalizeDateToLocalStr(b.date);
+                const [y, m] = dStr.split('-').map(Number);
+                return (m - 1) === currentMonth && y === currentYear;
             }).reduce((sum, b) => sum + b.pax, 0);
 
             let yearPaxTotal = bookings.filter(b => {
-                const bd = new Date(b.date);
-                return bd.getFullYear() === currentYear;
+                const dStr = normalizeDateToLocalStr(b.date);
+                const [y] = dStr.split('-').map(Number);
+                return y === currentYear;
             }).reduce((sum, b) => sum + b.pax, 0);
 
             const counts = {};
@@ -1532,24 +1551,18 @@ function getLocalDateStr(dateObj = new Date()) {
             document.getElementById('stat-popular').innerText = popularName;
             document.getElementById('stat-popular-count').innerText = `${maxPax} total pax`;
 
-           const customDateVal = document.getElementById('admin-custom-date')?.value || '';
-            const tomorrowObj = new Date(now);
-            tomorrowObj.setDate(tomorrowObj.getDate() + 1);
-            const tomorrowStr = getLocalDateStr(tomorrowObj);
-            const localTodayStr = getLocalDateStr(now);
-
             let filteredTableBookings = bookings.filter(b => {
-                const bkDateStr = String(b.date || '').split('T')[0];
-                if (dateFilter === 'TODAY') return bkDateStr === localTodayStr || b.date === todayStr;
+                const bkDateStr = normalizeDateToLocalStr(b.date);
+                if (dateFilter === 'TODAY') return bkDateStr === localTodayStr;
                 if (dateFilter === 'TOMORROW') return bkDateStr === tomorrowStr;
                 if (dateFilter === 'CUSTOM') return customDateVal ? bkDateStr === customDateVal : true;
                 if (dateFilter === 'MONTH') {
-                    const bd = new Date(bkDateStr + 'T00:00:00');
-                    return !isNaN(bd) && bd.getMonth() === currentMonth && bd.getFullYear() === currentYear;
+                    const [y, m] = bkDateStr.split('-').map(Number);
+                    return (m - 1) === currentMonth && y === currentYear;
                 }
                 if (dateFilter === 'YEAR') {
-                    const bd = new Date(bkDateStr + 'T00:00:00');
-                    return !isNaN(bd) && bd.getFullYear() === currentYear;
+                    const [y] = bkDateStr.split('-').map(Number);
+                    return y === currentYear;
                 }
                 return true;
             });
@@ -1562,7 +1575,9 @@ function getLocalDateStr(dateObj = new Date()) {
                 noMsg.classList.remove('hidden');
             } else {
                 noMsg.classList.add('hidden');
-                tbody.innerHTML = filteredTableBookings.map(bk => `
+                tbody.innerHTML = filteredTableBookings.map(bk => {
+                    const cleanDate = normalizeDateToLocalStr(bk.date);
+                    return `
                     <tr class="hover:bg-sand-50 transition">
                         <td class="p-4 whitespace-nowrap text-xs text-gray-500">${new Date(bk.createdAt).toLocaleString()}</td>
                         <td class="p-4 whitespace-nowrap">
@@ -1573,7 +1588,7 @@ function getLocalDateStr(dateObj = new Date()) {
                         <td class="p-4 whitespace-nowrap">
                             <span class="font-semibold text-gray-800">${bk.activityName}</span>
                             <div class="text-[11px] text-emerald-700 font-medium mt-0.5">
-                                <i class="fa-regular fa-calendar mr-1"></i>${String(bk.date || '').split('T')[0]}
+                                <i class="fa-regular fa-calendar mr-1"></i>${cleanDate}
                                 ${bk.sessionLabel ? ` • ${bk.sessionLabel}` : ''}
                             </div>
                         </td>
@@ -1593,7 +1608,8 @@ function getLocalDateStr(dateObj = new Date()) {
                             </button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             }
 
             const actPaxMap = {};
@@ -1630,9 +1646,10 @@ function getLocalDateStr(dateObj = new Date()) {
             const monthlyPax = new Array(12).fill(0);
 
             bookings.forEach(b => {
-                const bd = new Date(b.date);
-                if (bd.getFullYear() === year) {
-                    monthlyPax[bd.getMonth()] += b.pax;
+                const dStr = normalizeDateToLocalStr(b.date);
+                const [y, m] = dStr.split('-').map(Number);
+                if (y === year && m >= 1 && m <= 12) {
+                    monthlyPax[m - 1] += b.pax;
                 }
             });
 
@@ -1679,13 +1696,13 @@ function getLocalDateStr(dateObj = new Date()) {
 
             let csvContent = "data:text/csv;charset=utf-8,ID,TIMESTAMP,NAME,ACTIVITY NAME,DATE,PAX,ROOM,PACKAGE,NOTES,SESSIONID,SESSION LABEL,STATUS\n";
             bookings.forEach(b => {
-                csvContent += `"${b.id}","${b.createdAt}","${b.name}","${b.activityName}","${b.date}",${b.pax},"${b.room}","${b.package}","${b.notes}","${b.sessionId}","${b.sessionLabel}","${b.status || 'Pending'}"\n`;
+                csvContent += `"${b.id}","${b.createdAt}","${b.name}","${b.activityName}","${normalizeDateToLocalStr(b.date)}",${b.pax},"${b.room}","${b.package}","${b.notes}","${b.sessionId}","${b.sessionLabel}","${b.status || 'Pending'}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
             let link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `BaliTropic_Activity_Bookings_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute("download", `BaliTropic_Activity_Bookings_${getLocalDateStr(new Date())}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
