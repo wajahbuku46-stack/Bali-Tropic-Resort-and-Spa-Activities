@@ -1540,7 +1540,10 @@
                         <td class="p-4 whitespace-nowrap font-semibold text-emerald-800">Rm ${bk.room}</td>
                         <td class="p-4 whitespace-nowrap">
                             <span class="font-semibold text-gray-800">${bk.activityName}</span>
-                            ${bk.sessionLabel ? `<div class="text-[11px] text-emerald-700 font-medium">${bk.sessionLabel}</div>` : ''}
+                            <div class="text-[11px] text-emerald-700 font-medium mt-0.5">
+                                <i class="fa-regular fa-calendar mr-1"></i>${String(bk.date || '').split('T')[0]}
+                                ${bk.sessionLabel ? ` • ${bk.sessionLabel}` : ''}
+                            </div>
                         </td>
                         <td class="p-4 whitespace-nowrap">
                             ${bk.notes ? `<span class="px-2 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded text-xs font-medium inline-block max-w-xs break-words">${bk.notes}</span>` : '<span class="text-gray-400 text-xs font-light italic">-</span>'}
